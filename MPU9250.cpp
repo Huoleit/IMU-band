@@ -489,10 +489,10 @@ void MPU9250::calibrateMPU9250(uint8_t MPUnum, float * dest1, float * dest2)
   writeByte(MPUnum, CONFIG, 0x01);      // Set low-pass filter to 188 Hz
   writeByte(MPUnum, SMPLRT_DIV, 0x00);  // Set sample rate to 1 kHz
   writeByte(MPUnum, GYRO_CONFIG, 0x00);  // Set gyro full-scale to 250 degrees per second, maximum sensitivity
-  writeByte(MPUnum, ACCEL_CONFIG, 0x00); // Set accelerometer full-scale to 2 g, maximum sensitivity
+  writeByte(MPUnum, ACCEL_CONFIG, 0x08); // Set accelerometer full-scale to 4 g, maximum sensitivity
  
   uint16_t  gyrosensitivity  = 131;   // = 131 LSB/degrees/sec
-  uint16_t  accelsensitivity = 16384;  // = 16384 LSB/g
+  uint16_t  accelsensitivity = 8192;  // = 8192 LSB/g
 
     // Configure FIFO to capture accelerometer and gyro data for bias calculation
   writeByte(MPUnum, USER_CTRL, 0x40);   // Enable FIFO  
@@ -550,60 +550,19 @@ void MPU9250::calibrateMPU9250(uint8_t MPUnum, float * dest1, float * dest2)
   writeByte(MPUnum, ZG_OFFSET_L, data[5]);
   
 // Output scaled gyro biases for display in the main program
+if(!dest1)
+{
   dest1[0] = (float) gyro_bias[0]/(float) gyrosensitivity;  
   dest1[1] = (float) gyro_bias[1]/(float) gyrosensitivity;
   dest1[2] = (float) gyro_bias[2]/(float) gyrosensitivity;
-
-// Construct the accelerometer biases for push to the hardware accelerometer bias registers. These registers contain
-// factory trim values which must be added to the calculated accelerometer biases; on boot up these registers will hold
-// non-zero values. In addition, bit 0 of the lower byte must be preserved since it is used for temperature
-// compensation calculations. Accelerometer bias registers expect bias input as 2048 LSB per g, so that
-// the accelerometer biases calculated above must be divided by 8.
-
-  int32_t accel_bias_reg[3] = {0, 0, 0}; // A place to hold the factory accelerometer trim biases
-  readBytes(MPUnum, XA_OFFSET_H, 2, &data[0]); // Read factory accelerometer trim values
-  accel_bias_reg[0] = (int32_t) (((int16_t)data[0] << 8) | data[1]);
-  readBytes(MPUnum, YA_OFFSET_H, 2, &data[0]);
-  accel_bias_reg[1] = (int32_t) (((int16_t)data[0] << 8) | data[1]);
-  readBytes(MPUnum, ZA_OFFSET_H, 2, &data[0]);
-  accel_bias_reg[2] = (int32_t) (((int16_t)data[0] << 8) | data[1]);
-  
-  uint32_t mask = 1uL; // Define mask for temperature compensation bit 0 of lower byte of accelerometer bias registers
-  uint8_t mask_bit[3] = {0, 0, 0}; // Define array to hold mask bit for each accelerometer bias axis
-  
-  for(ii = 0; ii < 3; ii++) {
-    if((accel_bias_reg[ii] & mask)) mask_bit[ii] = 0x01; // If temperature compensation bit is set, record that fact in mask_bit
-  }
-  
-  // Construct total accelerometer bias, including calculated average accelerometer bias from above
-  accel_bias_reg[0] -= (accel_bias[0]/8); // Subtract calculated averaged accelerometer bias scaled to 2048 LSB/g (16 g full scale)
-  accel_bias_reg[1] -= (accel_bias[1]/8);
-  accel_bias_reg[2] -= (accel_bias[2]/8);
-  
-  data[0] = (accel_bias_reg[0] >> 8) & 0xFF;
-  data[1] = (accel_bias_reg[0])      & 0xFF;
-  data[1] = data[1] | mask_bit[0]; // preserve temperature compensation bit when writing back to accelerometer bias registers
-  data[2] = (accel_bias_reg[1] >> 8) & 0xFF;
-  data[3] = (accel_bias_reg[1])      & 0xFF;
-  data[3] = data[3] | mask_bit[1]; // preserve temperature compensation bit when writing back to accelerometer bias registers
-  data[4] = (accel_bias_reg[2] >> 8) & 0xFF;
-  data[5] = (accel_bias_reg[2])      & 0xFF;
-  data[5] = data[5] | mask_bit[2]; // preserve temperature compensation bit when writing back to accelerometer bias registers
- 
-// Apparently this is not working for the acceleration biases in the MPU-9250
-// Are we handling the temperature correction bit properly?
-// Push accelerometer biases to hardware registers
-//  writeByte(MPU9250_ADDRESS, XA_OFFSET_H, data[0]);
-//  writeByte(MPU9250_ADDRESS, XA_OFFSET_L, data[1]);
-//  writeByte(MPU9250_ADDRESS, YA_OFFSET_H, data[2]);
-//  writeByte(MPU9250_ADDRESS, YA_OFFSET_L, data[3]);
-//  writeByte(MPU9250_ADDRESS, ZA_OFFSET_H, data[4]);
-//  writeByte(MPU9250_ADDRESS, ZA_OFFSET_L, data[5]);
-
+}
 // Output scaled accelerometer biases for display in the main program
-   dest2[0] = (float)accel_bias[0]/(float)accelsensitivity; 
-   dest2[1] = (float)accel_bias[1]/(float)accelsensitivity;
-   dest2[2] = (float)accel_bias[2]/(float)accelsensitivity;
+  if (dest2)
+  {
+    dest2[0] = (float)accel_bias[0] / (float)accelsensitivity;
+    dest2[1] = (float)accel_bias[1] / (float)accelsensitivity;
+    dest2[2] = (float)accel_bias[2] / (float)accelsensitivity;
+  }
 }
 
 // Accelerometer and gyroscope self test; check calibration wrt factory settings
@@ -753,7 +712,7 @@ void MPU9250::I2Cscan()
   Wire.beginTransmission(address);         // Initialize the Tx buffer
   Wire.write(subAddress);                  // Put slave register address in Tx buffer
   Wire.endTransmission(false);             // Send the Tx buffer, but send a restart to keep connection alive
-  Wire.requestFrom(address, 1);            // Read two bytes from slave register address on MPU9250 
+  Wire.requestFrom(address, (uint8_t)1);            // Read two bytes from slave register address on MPU9250 
   data = Wire.read();                      // Fill Rx buffer with result
   return data;                             // Return data read from slave register
 }
