@@ -1,6 +1,7 @@
 #include "Wire.h"   
 #include "MPU9250.h"
 
+#define CALIBRATION_GYRO 0
 uint8_t Gscale = GFS_250DPS, Ascale = AFS_4G, Mscale = MFS_16BITS, Mmode = M_100Hz, sampleRate = 0x04;         
 float aRes, gRes, mRes;      // scale resolutions per LSB for the sensors
 float motion = 0; // check on linear acceleration to determine motion
@@ -28,8 +29,11 @@ float   temperature1, temperature2;    // Stores the MPU9250 internal chip tempe
 float   SelfTest[6];    // holds results of gyro and accelerometer self test
 
 // These can be measured once and entered here or can be calculated each time the device is powered on
-float   gyroBias1[3] = {0.0f, 0.0f, 0.0f}, accelBias1[3] = {-1.66613769f, -2.16113281f, -0.33935546f};
-float   gyroBias2[3] = {0.0f, 0.0f, 0.0f}, accelBias2[3] = {0.0f, 0.0f, 0.0f};
+int32_t   gyroBias1[3] = {409, -225, 29};
+float accelBias1[3] = {-1.66613769f, -2.16113281f, -0.33935546f};
+
+int32_t   gyroBias2[3] = {0, 0, 0};
+float accelBias2[3] = {0.0f, 0.0f, 0.0f};
 
 float   magBias1[3] = {71.04, 122.43, -36.90}, magScale1[3]  = {1.01, 1.03, 0.96}; // Bias corrections for gyro and accelerometer
 float   magBias2[3] = {71.04, 122.43, -36.90}, magScale2[3]  = {1.01, 1.03, 0.96}; // Bias corrections for gyro and accelerometer
@@ -92,10 +96,14 @@ void setup()
   gRes = MPU9250.getGres(Gscale);
   mRes = MPU9250.getMres(Mscale);
 
- // Comment out if using pre-measured, pre-stored offset biases
-  MPU9250.calibrateMPU9250(MPU1, gyroBias1, NULL); // Calibrate gyro and accelerometers, load biases in bias registers
-  Serial.println("MPU1 accel biases (g)"); Serial.println(accelBias1[0],8); Serial.println(accelBias1[1],8); Serial.println(accelBias1[2],8);
-  Serial.println("MPU1 gyro biases (dps)"); Serial.println(gyroBias1[0]); Serial.println(gyroBias1[1]); Serial.println(gyroBias1[2]);
+#if CALIBRATION_GYRO
+    MPU9250.calibrateMPU9250(MPU1, gyroBias1, NULL); // Calibrate gyro and accelerometers, load biases in bias registers
+    Serial.println("MPU1 accel biases (g)"); Serial.println(accelBias1[0],10); Serial.println(accelBias1[1],8); Serial.println(accelBias1[2],8);
+    Serial.println("MPU1 gyro biases (dps)"); Serial.println(gyroBias1[0]); Serial.println(gyroBias1[1]); Serial.println(gyroBias1[2]);
+    Serial.println("Finished!! Please reset");
+    while(1);
+#endif
+  MPU9250.GyroBiasWriteToReg(MPU1, gyroBias1);
   // MPU9250.calibrateMPU9250(MPU2, gyroBias2, accelBias2); // Calibrate gyro and accelerometers, load biases in bias registers
   // Serial.println("MPU2 accel biases (mg)"); Serial.println(1000.*accelBias2[0]); Serial.println(1000.*accelBias2[1]); Serial.println(1000.*accelBias2[2]);
   // Serial.println("MPU2 gyro biases (dps)"); Serial.println(gyroBias2[0]); Serial.println(gyroBias2[1]); Serial.println(gyroBias2[2]);
@@ -158,7 +166,7 @@ void loop()
   // digitalWrite(myLed, HIGH);
    if(intFlag1 == true) {   
       intFlag1 = false; 
-      
+
     MPU9250.readMPU9250Data(MPU1, MPU9250Data1); // INT cleared on any read
    
     // Now we'll calculate the accleration value into actual g's

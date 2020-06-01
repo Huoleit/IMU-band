@@ -460,7 +460,7 @@ void MPU9250::magcalMPU9250(uint8_t MPUnum, float * dest1, float * dest2)
 
 // Function which accumulates gyro and accelerometer data after device initialization. It calculates the average
 // of the at-rest readings and then loads the resulting offsets into accelerometer and gyro bias registers.
-void MPU9250::calibrateMPU9250(uint8_t MPUnum, float * dest1, float * dest2)
+void MPU9250::calibrateMPU9250(uint8_t MPUnum, int32_t * dest1, float * dest2)
 {  
   uint8_t data[12]; // data array to hold accelerometer and gyro x, y, z, data
   uint16_t ii, packet_count, fifo_count;
@@ -533,36 +533,39 @@ void MPU9250::calibrateMPU9250(uint8_t MPUnum, float * dest1, float * dest2)
   if(accel_bias[2] > 0L) {accel_bias[2] -= (int32_t) accelsensitivity;}  // Remove gravity from the z-axis accelerometer bias calculation
   else {accel_bias[2] += (int32_t) accelsensitivity;}
    
-// Construct the gyro biases for push to the hardware gyro bias registers, which are reset to zero upon device startup
-  data[0] = (-gyro_bias[0]/4  >> 8) & 0xFF; // Divide by 4 to get 32.9 LSB per deg/s to conform to expected bias input format
-  data[1] = (-gyro_bias[0]/4)       & 0xFF; // Biases are additive, so change sign on calculated average gyro biases
-  data[2] = (-gyro_bias[1]/4  >> 8) & 0xFF;
-  data[3] = (-gyro_bias[1]/4)       & 0xFF;
-  data[4] = (-gyro_bias[2]/4  >> 8) & 0xFF;
-  data[5] = (-gyro_bias[2]/4)       & 0xFF;
-  
-// Push gyro biases to hardware registers
-  writeByte(MPUnum, XG_OFFSET_H, data[0]);
-  writeByte(MPUnum, XG_OFFSET_L, data[1]);
-  writeByte(MPUnum, YG_OFFSET_H, data[2]);
-  writeByte(MPUnum, YG_OFFSET_L, data[3]);
-  writeByte(MPUnum, ZG_OFFSET_H, data[4]);
-  writeByte(MPUnum, ZG_OFFSET_L, data[5]);
-  
-// Output scaled gyro biases for display in the main program
-if(!dest1)
-{
-  dest1[0] = (float) gyro_bias[0]/(float) gyrosensitivity;  
-  dest1[1] = (float) gyro_bias[1]/(float) gyrosensitivity;
-  dest1[2] = (float) gyro_bias[2]/(float) gyrosensitivity;
-}
-// Output scaled accelerometer biases for display in the main program
+  // Output scaled gyro biases for display in the main program
+  if (dest1)
+  {
+    dest1[0] = gyro_bias[0];
+    dest1[1] = gyro_bias[1];
+    dest1[2] = gyro_bias[2];
+  }
+  // Output scaled accelerometer biases for display in the main program
   if (dest2)
   {
     dest2[0] = (float)accel_bias[0] / (float)accelsensitivity;
     dest2[1] = (float)accel_bias[1] / (float)accelsensitivity;
     dest2[2] = (float)accel_bias[2] / (float)accelsensitivity;
   }
+}
+void MPU9250::GyroBiasWriteToReg(uint8_t MPUnum, int32_t *gyro_bias)
+{
+  uint8_t data[12];
+  // Construct the gyro biases for push to the hardware gyro bias registers, which are reset to zero upon device startup
+  data[0] = (-gyro_bias[0] / 4 >> 8) & 0xFF; // Divide by 4 to get 32.9 LSB per deg/s to conform to expected bias input format
+  data[1] = (-gyro_bias[0] / 4) & 0xFF;      // Biases are additive, so change sign on calculated average gyro biases
+  data[2] = (-gyro_bias[1] / 4 >> 8) & 0xFF;
+  data[3] = (-gyro_bias[1] / 4) & 0xFF;
+  data[4] = (-gyro_bias[2] / 4 >> 8) & 0xFF;
+  data[5] = (-gyro_bias[2] / 4) & 0xFF;
+
+  // Push gyro biases to hardware registers
+  writeByte(MPUnum, XG_OFFSET_H, data[0]);
+  writeByte(MPUnum, XG_OFFSET_L, data[1]);
+  writeByte(MPUnum, YG_OFFSET_H, data[2]);
+  writeByte(MPUnum, YG_OFFSET_L, data[3]);
+  writeByte(MPUnum, ZG_OFFSET_H, data[4]);
+  writeByte(MPUnum, ZG_OFFSET_L, data[5]);
 }
 
 // Accelerometer and gyroscope self test; check calibration wrt factory settings

@@ -205,8 +205,9 @@ class MPU9250
   float getGres(uint8_t Gscale);
   float getMres(uint8_t Mscale);
   void magcalMPU9250(uint8_t MPUnum, float * dest1, float * dest2);
-  void calibrateMPU9250(uint8_t MPUnum, float * dest1, float * dest2);
-  void SelfTest(uint8_t MPUnum, float * destination);
+  void calibrateMPU9250(uint8_t MPUnum, int32_t * dest1, float * dest2);
+  void GyroBiasWriteToReg(uint8_t MPUnum, int32_t *gyro_bias);
+  void SelfTest(uint8_t MPUnum, float *destination);
   void readMPU9250Data(uint8_t MPUnum, int16_t * destination);
   void readAccelData(uint8_t MPUnum, int16_t * destination);
   void readGyroData(uint8_t MPUnum, int16_t * destination);
