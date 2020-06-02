@@ -419,6 +419,7 @@ void MPU9250::magcalMPU9250(uint8_t MPUnum, float * dest1, float * dest2)
       if(mag_temp[jj] > mag_max[jj]) mag_max[jj] = mag_temp[jj];
       if(mag_temp[jj] < mag_min[jj]) mag_min[jj] = mag_temp[jj];
     }
+    Serial.println(ii);
  }
 
     Serial.println("mag x min/max:"); Serial.println(mag_max[0]); Serial.println(mag_min[0]);

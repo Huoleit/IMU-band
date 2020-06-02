@@ -1,7 +1,9 @@
 #include "Wire.h"   
 #include "MPU9250.h"
+#include "Quaternion.h"
 
 #define CALIBRATION_GYRO 0
+#define CALIBRATION_MAG 0
 uint8_t Gscale = GFS_250DPS, Ascale = AFS_4G, Mscale = MFS_16BITS, Mmode = M_100Hz, sampleRate = 0x04;         
 float aRes, gRes, mRes;      // scale resolutions per LSB for the sensors
 float motion = 0; // check on linear acceleration to determine motion
@@ -35,7 +37,7 @@ float accelBias1[3] = {-1.66613769f, -2.16113281f, -0.33935546f};
 int32_t   gyroBias2[3] = {0, 0, 0};
 float accelBias2[3] = {0.0f, 0.0f, 0.0f};
 
-float   magBias1[3] = {71.04, 122.43, -36.90}, magScale1[3]  = {1.01, 1.03, 0.96}; // Bias corrections for gyro and accelerometer
+float   magBias1[3] = {415.33, -209.91, -229.41}, magScale1[3]  = {1.20, 0.91, 0.93}; // Bias corrections for gyro and accelerometer
 float   magBias2[3] = {71.04, 122.43, -36.90}, magScale2[3]  = {1.01, 1.03, 0.96}; // Bias corrections for gyro and accelerometer
 
 
@@ -121,11 +123,11 @@ void setup()
   delay(1000); 
   
   // Get magnetometer calibration from AK8963 ROM
-  // MPU9250.initAK8963Slave(MPU1, Mscale, Mmode, magCalibration1); Serial.println("AK8963 1 initialized for active data mode...."); // Initialize device 1 for active mode read of magnetometer
-  // Serial.println("Calibration values for mag 1: ");
-  // Serial.print("X-Axis sensitivity adjustment value "); Serial.println(magCalibration1[0], 2);
-  // Serial.print("Y-Axis sensitivity adjustment value "); Serial.println(magCalibration1[1], 2);
-  // Serial.print("Z-Axis sensitivity adjustment value "); Serial.println(magCalibration1[2], 2);
+  MPU9250.initAK8963Slave(MPU1, Mscale, Mmode, magCalibration1); Serial.println("AK8963 1 initialized for active data mode...."); // Initialize device 1 for active mode read of magnetometer
+  Serial.println("Calibration values for mag 1: ");
+  Serial.print("X-Axis sensitivity adjustment value "); Serial.println(magCalibration1[0], 2);
+  Serial.print("Y-Axis sensitivity adjustment value "); Serial.println(magCalibration1[1], 2);
+  Serial.print("Z-Axis sensitivity adjustment value "); Serial.println(magCalibration1[2], 2);
   // MPU9250.initAK8963Slave(MPU2, Mscale, Mmode, magCalibration2); Serial.println("AK8963 2 initialized for active data mode...."); // Initialize device 2 for active mode read of magnetometer
   // Serial.println("Calibration values for mag 2: ");
   // Serial.print("X-Axis sensitivity adjustment value "); Serial.println(magCalibration2[0], 2);
@@ -133,9 +135,12 @@ void setup()
   // Serial.print("Z-Axis sensitivity adjustment value "); Serial.println(magCalibration2[2], 2);
   
  // Comment out if using pre-measured, pre-stored offset biases
-  // MPU9250.magcalMPU9250(MPU1, magBias1, magScale1);
-  // Serial.println("AK8963 1 mag biases (mG)"); Serial.println(magBias1[0]); Serial.println(magBias1[1]); Serial.println(magBias1[2]); 
-  // Serial.println("AK8963 1 mag scale (mG)"); Serial.println(magScale1[0]); Serial.println(magScale1[1]); Serial.println(magScale1[2]); 
+#if CALIBRATION_MAG
+  MPU9250.magcalMPU9250(MPU1, magBias1, magScale1);
+  Serial.println("AK8963 1 mag biases (mG)"); Serial.println(magBias1[0]); Serial.println(magBias1[1]); Serial.println(magBias1[2]); 
+  Serial.println("AK8963 1 mag scale (mG)"); Serial.println(magScale1[0]); Serial.println(magScale1[1]); Serial.println(magScale1[2]); 
+  while(1);
+#endif
   // MPU9250.magcalMPU9250(MPU2, magBias2, magScale2);
   // Serial.println("AK8963 2 mag biases (mG)"); Serial.println(magBias2[0]); Serial.println(magBias2[1]); Serial.println(magBias2[2]); 
   // Serial.println("AK8963 2 mag scale (mG)"); Serial.println(magScale2[0]); Serial.println(magScale2[1]); Serial.println(magScale2[2]); 
@@ -179,18 +184,18 @@ void loop()
      gy1 = (float)MPU9250Data1[5]*gRes;  
      gz1 = (float)MPU9250Data1[6]*gRes; 
   
-// //    if( MPU9250.checkNewMagData() == true) { // wait for magnetometer data ready bit to be set
-//       MPU9250.readMagData(MPU1, magCount1);  // Read the x/y/z adc values
+//    if( MPU9250.checkNewMagData() == true) { // wait for magnetometer data ready bit to be set
+      MPU9250.readMagData(MPU1, magCount1);  // Read the x/y/z adc values
   
-//     // Calculate the magnetometer values in milliGauss
-//     // Include factory calibration per data sheet and user environmental corrections
-//       mx1 = (float)magCount1[0]*mRes*magCalibration1[0] - magBias1[0];  // get actual magnetometer value, this depends on scale being set
-//       my1 = (float)magCount1[1]*mRes*magCalibration1[1] - magBias1[1];  
-//       mz1 = (float)magCount1[2]*mRes*magCalibration1[2] - magBias1[2];  
-//       mx1 *= magScale1[0];
-//       my1 *= magScale1[1];
-//       mz1 *= magScale1[2]; 
-// //    }
+    // Calculate the magnetometer values in milliGauss
+    // Include factory calibration per data sheet and user environmental corrections
+      mx1 = (float)magCount1[0]*mRes*magCalibration1[0] - magBias1[0];  // get actual magnetometer value, this depends on scale being set
+      my1 = (float)magCount1[1]*mRes*magCalibration1[1] - magBias1[1];  
+      mz1 = (float)magCount1[2]*mRes*magCalibration1[2] - magBias1[2];  
+      mx1 *= magScale1[0];
+      my1 *= magScale1[1];
+      mz1 *= magScale1[2]; 
+//    }
    
     Now1 = micros();
     deltat1 = ((Now1 - lastUpdate1)/1000000.0f); // set integration time by time elapsed since last filter update
@@ -206,9 +211,12 @@ void loop()
       Serial.print("ax1 = "); Serial.print((int)1000*ax1);  
       Serial.print(" ay1 = "); Serial.print((int)1000*ay1); 
       Serial.print(" az1 = "); Serial.print((int)1000*az1); Serial.println(" mg");
-      Serial.print("gx1 = "); Serial.print( gx1, 2); 
-      Serial.print(" gy1 = "); Serial.print( gy1, 2); 
-      Serial.print(" gz1 = "); Serial.print( gz1, 2); Serial.println(" deg/s");
+      Serial.print("gx1 = "); Serial.print( gx1, 4); 
+      Serial.print(" gy1 = "); Serial.print( gy1, 4); 
+      Serial.print(" gz1 = "); Serial.print( gz1, 4); Serial.println(" deg/s");
+      Serial.print("mx1 = "); Serial.print( (int)mx1 ); 
+      Serial.print(" my1 = "); Serial.print( (int)my1 ); 
+      Serial.print(" mz1 = "); Serial.print( (int)mz1 ); Serial.println(" mG");
       sum1 = 0;
       sumCount1 = 0;
     }
