@@ -36,7 +36,7 @@ float   temperature1, temperature2;    // Stores the MPU9250 internal chip tempe
 float   SelfTest[6];    // holds results of gyro and accelerometer self test
 
 // These can be measured once and entered here or can be calculated each time the device is powered on
-int32_t   gyroBias1[3] = {409, -225, 29};
+int32_t   gyroBias1[3] = {414, -265, 20};
 float accelBias1[3] = {-1.66613769f, -2.16113281f, -0.33935546f};
 
 int32_t   gyroBias2[3] = {0, 0, 0};
