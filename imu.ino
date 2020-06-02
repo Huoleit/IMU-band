@@ -1,14 +1,19 @@
 #include "Wire.h"   
 #include "MPU9250.h"
-#include "Quaternion.h"
+#include "Quaternion.hpp"
 
 #define CALIBRATION_GYRO 0
 #define CALIBRATION_MAG 0
+#define SERIAL_DEBUG 0
+
 uint8_t Gscale = GFS_250DPS, Ascale = AFS_4G, Mscale = MFS_16BITS, Mmode = M_100Hz, sampleRate = 0x04;         
 float aRes, gRes, mRes;      // scale resolutions per LSB for the sensors
 float motion = 0; // check on linear acceleration to determine motion
 // global constants for 9 DoF fusion and AHRS (Attitude and Heading Reference System)
 float pi = 3.141592653589793238462643383279502884f;
+const float rad2deg = 180.0f / pi;
+const float deg2rad = pi / 180.0f;
+
 float GyroMeasError = pi * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
 float GyroMeasDrift = pi * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
 float beta = sqrtf(3.0f / 4.0f) * GyroMeasError;   // compute beta
@@ -51,6 +56,8 @@ uint32_t lastUpdate1 = 0, lastUpdate2 = 0; // used to calculate integration inte
 uint32_t Now1 = 0, Now2 = 0;                         // used to calculate integration interval
 
 float ax1, ay1, az1, gx1, gy1, gz1, mx1, my1, mz1; // variables to hold latest sensor data values 
+float g1[3],a1[3],m1[3];
+Quaternion orien(1.0f,0.,0.,0.);
 float ax2, ay2, az2, gx2, gy2, gz2, mx2, my2, mz2; // variables to hold latest sensor data values 
 float lin_ax1, lin_ay1, lin_az1;             // linear acceleration (acceleration with gravity component subtracted)
 float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};    // vector to hold quaternion
@@ -58,6 +65,8 @@ float lin_ax2, lin_ay2, lin_az2;             // linear acceleration (acceleratio
 float Q[4] = {1.0f, 0.0f, 0.0f, 0.0f};    // vector to hold quaternion
 
 MPU9250 MPU9250(intPin1); // instantiate MPU9250 class
+uint32_t last_send_time1 = 0; 
+uint32_t delta_send_time1 = 0; 
 
 void setup()
 {
@@ -180,9 +189,9 @@ void loop()
      az1 = (float)MPU9250Data1[2]*aRes - accelBias1[2];  
 
     // Calculate the gyro value into actual degrees per second
-     gx1 = (float)MPU9250Data1[4]*gRes;  // get actual gyro value, this depends on scale being set
-     gy1 = (float)MPU9250Data1[5]*gRes;  
-     gz1 = (float)MPU9250Data1[6]*gRes; 
+     gx1 = (float)MPU9250Data1[4]*gRes*deg2rad;  // get actual gyro value, this depends on scale being set
+     gy1 = (float)MPU9250Data1[5]*gRes*deg2rad;  
+     gz1 = (float)MPU9250Data1[6]*gRes*deg2rad; 
   
 //    if( MPU9250.checkNewMagData() == true) { // wait for magnetometer data ready bit to be set
       MPU9250.readMagData(MPU1, magCount1);  // Read the x/y/z adc values
@@ -201,27 +210,59 @@ void loop()
     deltat1 = ((Now1 - lastUpdate1)/1000000.0f); // set integration time by time elapsed since last filter update
     lastUpdate1 = Now1;
 
+    Quaternion omega(0, gx1,gy1,gz1);
+    Quaternion delta_q = orien * omega * 0.5f;
+    orien = orien + (delta_q * deltat1);
+    orien.normalize();
+
+    orien.toEulerAngle(&roll1, &pitch1,&yaw1);
+    roll1 *= rad2deg;
+    pitch1 *= rad2deg;
+    yaw1 *= rad2deg;
+   
     sum1 += deltat1; // sum for averaging filter update rate
     sumCount1++;
-    // Serial.println(sum1);
-
-    if(sum1 > 1.0f)
+    if(sum1 >= 1.0f) //1HZ 
     {
-      Serial.print("rate 1 = "); Serial.print((float)sumCount1/sum1, 2); Serial.println(" Hz");
-      Serial.print("ax1 = "); Serial.print((int)1000*ax1);  
-      Serial.print(" ay1 = "); Serial.print((int)1000*ay1); 
-      Serial.print(" az1 = "); Serial.print((int)1000*az1); Serial.println(" mg");
-      Serial.print("gx1 = "); Serial.print( gx1, 4); 
-      Serial.print(" gy1 = "); Serial.print( gy1, 4); 
-      Serial.print(" gz1 = "); Serial.print( gz1, 4); Serial.println(" deg/s");
-      Serial.print("mx1 = "); Serial.print( (int)mx1 ); 
-      Serial.print(" my1 = "); Serial.print( (int)my1 ); 
-      Serial.print(" mz1 = "); Serial.print( (int)mz1 ); Serial.println(" mG");
+      if (SERIAL_DEBUG)
+      {
+        Serial.print("rate 1 = "); Serial.print((float)sumCount1/sum1, 2); Serial.println(" Hz");
+        Serial.print("ax1 = "); Serial.print((int)1000*ax1);  
+        Serial.print(" ay1 = "); Serial.print((int)1000*ay1); 
+        Serial.print(" az1 = "); Serial.print((int)1000*az1); Serial.println(" mg");
+        Serial.print("gx1 = "); Serial.print( gx1, 4); 
+        Serial.print(" gy1 = "); Serial.print( gy1, 4); 
+        Serial.print(" gz1 = "); Serial.print( gz1, 4); Serial.println(" deg/s");
+        Serial.print("mx1 = "); Serial.print( (int)mx1 ); 
+        Serial.print(" my1 = "); Serial.print( (int)my1 ); 
+        Serial.print(" mz1 = "); Serial.print( (int)mz1 ); Serial.println(" mG");
+        Serial.print("MPU9250 1 Yaw, Pitch, Roll: ");
+        Serial.print(yaw1, 2);
+        Serial.print(", ");
+        Serial.print(pitch1, 2);
+        Serial.print(", ");
+        Serial.println(roll1, 2);
+      }
       sum1 = 0;
       sumCount1 = 0;
     }
 
     /* end of MPU9250 1 interrupt handling */
+   }
+
+   delta_send_time1 = millis() - last_send_time1;
+   if (!SERIAL_DEBUG && delta_send_time1 >= 10) //100HZ
+   {
+     last_send_time1 = millis();
+     Serial.print(String("#;"));
+     Serial.print(orien.w, 5);
+     Serial.print(String(';'));
+     Serial.print(orien.x, 5);
+     Serial.print(String(';'));
+     Serial.print(orien.y, 5);
+     Serial.print(String(';'));
+     Serial.print(orien.z, 5);
+     Serial.print('\n');
    }
 }
 
