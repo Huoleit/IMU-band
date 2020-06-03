@@ -280,10 +280,8 @@ void loop()
      Serial.print(orien_1.y, 5);
      Serial.print(String(';'));
      Serial.print(orien_1.z, 5);
-     Serial.print('\n');
-
+     Serial.print(String(';'));
      
-     Serial.print(String("$;"));
      Serial.print(orien_2.w, 5);
      Serial.print(String(';'));
      Serial.print(orien_2.x, 5);
@@ -291,8 +289,6 @@ void loop()
      Serial.print(orien_2.y, 5);
      Serial.print(String(';'));
      Serial.print(orien_2.z, 5);
-     Serial.print(String(';'));
-     Serial.print(delta_send_time);
      Serial.print('\n');
    }
 }
