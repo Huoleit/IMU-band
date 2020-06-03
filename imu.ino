@@ -6,19 +6,13 @@
 #define CALIBRATION_MAG 0
 #define SERIAL_DEBUG 0
 
-uint8_t Gscale = GFS_250DPS, Ascale = AFS_4G, Mscale = MFS_16BITS, Mmode = M_100Hz, sampleRate = 0x04;         
+const uint8_t Gscale = GFS_250DPS, Ascale = AFS_4G, Mscale = MFS_16BITS, Mmode = M_100Hz, sampleRate = 0x04;         
 float aRes, gRes, mRes;      // scale resolutions per LSB for the sensors
-float motion = 0; // check on linear acceleration to determine motion
-// global constants for 9 DoF fusion and AHRS (Attitude and Heading Reference System)
-float pi = 3.141592653589793238462643383279502884f;
+
+
+const float pi = 3.141592653589793238462643383279502884f;
 const float rad2deg = 180.0f / pi;
 const float deg2rad = pi / 180.0f;
-
-float GyroMeasError = pi * (40.0f / 180.0f);   // gyroscope measurement error in rads/s (start at 40 deg/s)
-float GyroMeasDrift = pi * (0.0f  / 180.0f);   // gyroscope measurement drift in rad/s/s (start at 0.0 deg/s/s)
-float beta = sqrtf(3.0f / 4.0f) * GyroMeasError;   // compute beta
-float zeta = sqrtf(3.0f / 4.0f) * GyroMeasDrift;   // compute zeta, the other free parameter in the Madgwick scheme usually set to a small or zero value
-bool wakeup;
 
 // Pin definitions
 int  intPin1 = 2;  //  MPU9250 1 interrupt
@@ -27,7 +21,6 @@ int  myLed  = 13; // red led
 
 volatile bool intFlag1 = false;
 volatile bool intFlag2 = false;
-bool newMagData = false;
 
 int16_t MPU9250Data1[7], MPU9250Data2[7]; // used to read all 14 bytes at once from the MPU9250 accel/gyro
 int16_t magCount1[3], magCount2[3];    // Stores the 16-bit signed magnetometer sensor output
@@ -49,20 +42,14 @@ float   magBias2[3] = {71.04, 122.43, -36.90}, magScale2[3]  = {1.01, 1.03, 0.96
 uint32_t delt_t1, delt_t2 = 0;                      // used to control display output rate
 uint32_t count1 = 0, sumCount1 = 0, count2 = 0, sumCount2 = 0;         // used to control display output rate
 float pitch1, yaw1, roll1, pitch2, yaw2, roll2;                   // absolute orientation
-float a12, a22, a31, a32, a33;            // rotation matrix coefficients for Euler angles and gravity components
-float A12, A22, A31, A32, A33;            // rotation matrix coefficients for Euler angles and gravity components
+
 float deltat1 = 0.0f, sum1 = 0.0f, deltat2 = 0.0f, sum2 = 0.0f;          // integration interval for both filter schemes
 uint32_t lastUpdate1 = 0, lastUpdate2 = 0; // used to calculate integration interval
 uint32_t Now1 = 0, Now2 = 0;                         // used to calculate integration interval
 
 float ax1, ay1, az1, gx1, gy1, gz1, mx1, my1, mz1; // variables to hold latest sensor data values 
-float g1[3],a1[3],m1[3];
-Quaternion orien(1.0f,0.,0.,0.);
 float ax2, ay2, az2, gx2, gy2, gz2, mx2, my2, mz2; // variables to hold latest sensor data values 
-float lin_ax1, lin_ay1, lin_az1;             // linear acceleration (acceleration with gravity component subtracted)
-float q[4] = {1.0f, 0.0f, 0.0f, 0.0f};    // vector to hold quaternion
-float lin_ax2, lin_ay2, lin_az2;             // linear acceleration (acceleration with gravity component subtracted)
-float Q[4] = {1.0f, 0.0f, 0.0f, 0.0f};    // vector to hold quaternion
+Quaternion orien(1.0f,0.,0.,0.);
 
 MPU9250 MPU9250(intPin1); // instantiate MPU9250 class
 uint32_t last_send_time1 = 0; 
