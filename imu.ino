@@ -29,10 +29,10 @@ float   temperature1, temperature2;    // Stores the MPU9250 internal chip tempe
 float   SelfTest[6];    // holds results of gyro and accelerometer self test
 
 // These can be measured once and entered here or can be calculated each time the device is powered on
-int32_t   gyroBias1[3] = {411, 184, 7};
+int32_t   gyroBias1[3] = {430, 194, 2};
 float accelBias1[3] = {-1.66613769f, -2.16113281f, -0.33935546f};
 
-int32_t   gyroBias2[3] = {-89, 75, 26};
+int32_t   gyroBias2[3] = {-89, 75, 4};
 float accelBias2[3] = {0.0f, 0.0f, 0.0f};
 
 float   magBias1[3] = {415.33, -209.91, -229.41}, magScale1[3]  = {1.20, 0.91, 0.93}; // Bias corrections for gyro and accelerometer
@@ -61,13 +61,9 @@ bool isOnline_2 = false;
 void setup()
 {
   Serial.begin(115200);
-  delay(200);
   
   Wire.begin(); 
   Wire.setClock(400000); 
-  delay(200);
-
-  // MPU9250.I2Cscan();
   
   pinMode(myLed, OUTPUT);
   digitalWrite(myLed, HIGH); 
@@ -109,7 +105,6 @@ void setup()
   if(isOnline_1)
   {
     MPU9250.GyroBiasWriteToReg(MPU1, gyroBias1);
-    delay(200);
     MPU9250.initMPU9250(MPU1, Ascale, Gscale, sampleRate); 
     byte e = MPU9250.getAK8963CID(MPU1);  // Read WHO_AM_I register for AK8963
     Serial.print("AK8963 1 "); Serial.print("I AM "); Serial.print(e, HEX); Serial.print(" I should be "); Serial.println(0x48, HEX);
@@ -118,7 +113,6 @@ void setup()
   if(isOnline_2)
   {
     MPU9250.GyroBiasWriteToReg(MPU2, gyroBias2);
-    delay(200);
     MPU9250.initMPU9250(MPU2, Ascale, Gscale, sampleRate); 
     byte e = MPU9250.getAK8963CID(MPU2);  // Read WHO_AM_I register for AK8963
     Serial.print("AK8963 2 "); Serial.print("I AM "); Serial.print(e, HEX); Serial.print(" I should be "); Serial.println(0x48, HEX);
